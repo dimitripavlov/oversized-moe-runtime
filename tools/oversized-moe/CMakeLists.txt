@@ -64,3 +64,16 @@ target_compile_features(
     PRIVATE
     cxx_std_17
 )
+
+
+set(CLI_TARGET oversized-moe)
+
+add_executable(${CLI_TARGET}
+    dispatch_main.cpp
+)
+
+target_compile_features(
+    ${CLI_TARGET}
+    PRIVATE
+    cxx_std_17
+)
