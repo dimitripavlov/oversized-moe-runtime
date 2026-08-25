@@ -80,7 +80,7 @@ For supported oversized sparse-MoE models it automatically:
 The runtime does not implement its own inference kernels or HTTP server.
 llama.cpp remains the inference engine.
 
-## Architecture
+## Runtime memory path
 
     +-----------------------------+
     |        GGUF on SSD          |
@@ -112,6 +112,40 @@ llama.cpp remains the inference engine.
 
 The product layer decides the RAM budget and residency quota. llama.cpp remains
 responsible for inference.
+
+The Rust/C++ product frontend belongs to the control plane and is not part of
+the inference hot path.
+
+## Control plane
+
+    +----------------------------------+
+    |      Oversized MoE Runtime       |
+    |                                  |
+    |  C++ frontend / Rust PoC         |
+    |  GGUF + memory probe             |
+    |  policy + quota selection        |
+    |  validation                      |
+    +----------------+-----------------+
+                     |
+                     | generic engine controls
+                     v
+    +----------------------------------+
+    |           llama.cpp              |
+    |                                  |
+    |  mmap / prefetch control         |
+    |  ExpertResidency configuration   |
+    +----------------+-----------------+
+                     |
+                     v
+    +----------------------------------+
+    |            ggml CPU              |
+    |                                  |
+    |  routed expert execution         |
+    |  zero-copy ExpertResidency       |
+    +----------------------------------+
+
+In v0.2 the Rust frontend uses a process/CLI boundary and hands execution to the
+same llama.cpp engine used by the C++ frontend.
 
 ## CLI
 
