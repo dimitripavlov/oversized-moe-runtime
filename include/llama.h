@@ -337,8 +337,9 @@ extern "C" {
         bool check_tensors;   // validate model tensor data
         bool use_extra_bufts; // use extra buffer types (used for weight repacking)
         bool no_host;         // bypass host buffer allowing extra buffers to be used
-        bool no_alloc;        // only load metadata and simulate memory allocations
-        bool load_mtp;        // whether to load MTP layers
+        bool no_alloc;         // only load metadata and simulate memory allocations
+        bool load_mtp;         // whether to load MTP layers
+        bool no_mmap_prefetch; // disable prefetch of mmap-backed model pages during load
     };
 
     struct llama_sampler_seq_config {

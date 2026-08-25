@@ -139,6 +139,10 @@ void test_oversized_completion_plan() {
         "oversized mode injects mmap load mode");
 
     check(
+        contains_arg(plan, "--no-mmap-prefetch"),
+        "oversized mode disables mmap prefetch");
+
+    check(
         contains_arg(plan, "--no-repack"),
         "oversized mode disables repack");
 
@@ -198,6 +202,10 @@ void test_oversized_server_plan() {
         "server oversized mode injects mmap");
 
     check(
+        contains_arg(plan, "--no-mmap-prefetch"),
+        "server oversized mode disables mmap prefetch");
+
+    check(
         contains_arg(plan, "--no-repack"),
         "server oversized mode disables repack");
 
@@ -241,6 +249,11 @@ void test_standard_plan() {
     check(
         !contains_arg(plan, "-lm"),
         "standard mode does not force load mode");
+
+    check(
+        !contains_arg(plan, "--no-mmap-prefetch") &&
+        !contains_arg(plan, "--mmap-prefetch"),
+        "standard mode does not force mmap prefetch policy");
 
     check(
         !contains_arg(plan, "--no-repack"),

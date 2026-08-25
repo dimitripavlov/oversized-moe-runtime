@@ -235,6 +235,8 @@ LaunchPlan make_engine_launch_plan(
             plan.argv.push_back("mmap");
         }
 
+        plan.argv.push_back("--no-mmap-prefetch");
+
         if (policy.disable_repack) {
             plan.argv.push_back("--no-repack");
         }
@@ -304,6 +306,14 @@ void validate_passthrough_args(
                 throw std::runtime_error(
                     "do not pass --mmap/--no-mmap: "
                     "mmap policy is controlled by "
+                    "the oversized MoE runtime");
+            }
+
+            if (arg == "--mmap-prefetch" ||
+                arg == "--no-mmap-prefetch") {
+                throw std::runtime_error(
+                    "do not pass --mmap-prefetch/--no-mmap-prefetch: "
+                    "mmap prefetch policy is controlled by "
                     "the oversized MoE runtime");
             }
 

@@ -2700,6 +2700,14 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_env("LLAMA_ARG_LOAD_MODE"));
     add_opt(common_arg(
+        {"--mmap-prefetch"},
+        {"--no-mmap-prefetch"},
+        "whether to prefetch memory-mapped model pages during load (default: true)",
+        [](common_params & params, bool value) {
+            params.no_mmap_prefetch = !value;
+        }
+    ).set_env("LLAMA_ARG_MMAP_PREFETCH"));
+    add_opt(common_arg(
         {"--numa"}, "TYPE",
         "attempt optimizations that help on some NUMA systems\n"
         "- distribute: spread execution evenly over all nodes\n"

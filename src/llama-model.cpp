@@ -1660,7 +1660,7 @@ bool llama_model_base::load_tensors(llama_model_loader & ml) {
         }
     }
 
-    ml.init_mappings(false, use_mlock ? &pimpl->mlock_mmaps : nullptr);
+    ml.init_mappings(!params.no_mmap_prefetch, use_mlock ? &pimpl->mlock_mmaps : nullptr);
     pimpl->mappings.reserve(ml.mappings.size());
 
     // create the backend buffers
@@ -2642,6 +2642,7 @@ llama_model_params llama_model_default_params() {
         /*.no_host                     =*/ false,
         /*.no_alloc                    =*/ false,
         /*.load_mtp                    =*/ false,
+        /*.no_mmap_prefetch            =*/ false,
     };
 
     return result;

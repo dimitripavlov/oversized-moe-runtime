@@ -474,6 +474,7 @@ struct common_params {
 
     enum llama_split_mode split_mode = LLAMA_SPLIT_MODE_LAYER; // how to split the model across GPUs
     enum llama_load_mode  load_mode  = LLAMA_LOAD_MODE_AUTO; // how to load the model
+    bool no_mmap_prefetch = false; // disable prefetch of mmap-backed model pages during load
 
     common_cpu_params cpuparams;
     common_cpu_params cpuparams_batch;
