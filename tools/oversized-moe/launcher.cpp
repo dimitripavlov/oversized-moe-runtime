@@ -34,7 +34,6 @@ std::filesystem::path resolve_from_path(
     }
 
     std::string path_list(path_env);
-
     std::size_t begin = 0;
 
     while (begin <= path_list.size()) {
@@ -90,6 +89,70 @@ std::filesystem::path resolve_launcher(
     return
         std::filesystem::absolute(raw)
         .lexically_normal();
+}
+
+std::string find_engine(
+        const std::string & launcher_argv0,
+        const char * override_env,
+        const std::string & engine_name) {
+    if (const char * override_path =
+            std::getenv(override_env);
+        override_path != nullptr &&
+        *override_path != '\0') {
+
+        const std::filesystem::path candidate(
+            override_path);
+
+        if (!executable_file(candidate)) {
+            throw std::runtime_error(
+                std::string(override_env) +
+                " is not executable: " +
+                candidate.string());
+        }
+
+        return
+            std::filesystem::absolute(candidate)
+            .lexically_normal()
+            .string();
+    }
+
+    const auto launcher =
+        resolve_launcher(launcher_argv0);
+
+    const auto sibling =
+        launcher.parent_path() /
+        engine_name;
+
+    if (executable_file(sibling)) {
+        return sibling.string();
+    }
+
+    const auto repo_build_candidate =
+        std::filesystem::current_path() /
+        "build/bin" /
+        engine_name;
+
+    if (executable_file(repo_build_candidate)) {
+        return
+            std::filesystem::absolute(
+                repo_build_candidate)
+            .lexically_normal()
+            .string();
+    }
+
+    const auto from_path =
+        resolve_from_path(engine_name);
+
+    if (!from_path.empty()) {
+        return from_path.string();
+    }
+
+    throw std::runtime_error(
+        "cannot find " +
+        engine_name +
+        "; expected it next to the launcher "
+        "or set " +
+        override_env);
 }
 
 std::string shell_quote(
@@ -148,102 +211,7 @@ bool starts_with(
             prefix) == 0;
 }
 
-} // namespace
-
-std::string find_llama_completion(
-        const std::string & launcher_argv0) {
-    if (const char * override_path =
-            std::getenv("LLAMA_COMPLETION_BIN");
-        override_path != nullptr &&
-        *override_path != '\0') {
-
-        const std::filesystem::path candidate(
-            override_path);
-
-        if (!executable_file(candidate)) {
-            throw std::runtime_error(
-                "LLAMA_COMPLETION_BIN is not executable: " +
-                candidate.string());
-        }
-
-        return
-            std::filesystem::absolute(candidate)
-            .lexically_normal()
-            .string();
-    }
-
-    const auto launcher =
-        resolve_launcher(launcher_argv0);
-
-    const auto sibling =
-        launcher.parent_path() /
-        "llama-completion";
-
-    if (executable_file(sibling)) {
-        return sibling.string();
-    }
-
-    const auto repo_build_candidate =
-        std::filesystem::current_path() /
-        "build/bin/llama-completion";
-
-    if (executable_file(repo_build_candidate)) {
-        return
-            std::filesystem::absolute(
-                repo_build_candidate)
-            .lexically_normal()
-            .string();
-    }
-
-    const auto from_path =
-        resolve_from_path("llama-completion");
-
-    if (!from_path.empty()) {
-        return from_path.string();
-    }
-
-    throw std::runtime_error(
-        "cannot find llama-completion; "
-        "expected it next to oversized-moe-run "
-        "or set LLAMA_COMPLETION_BIN");
-}
-
-void validate_passthrough_args(
-        const std::vector<std::string> & args) {
-    for (const auto & arg : args) {
-        if (arg == "-m" ||
-            arg == "--model" ||
-            starts_with(arg, "--model=")) {
-            throw std::runtime_error(
-                "do not pass -m/--model: "
-                "the model is the positional argument "
-                "of oversized-moe-run");
-        }
-
-        if (arg == "-lm") {
-            throw std::runtime_error(
-                "do not pass -lm: "
-                "model load mode is controlled by "
-                "oversized-moe-run");
-        }
-
-        if (arg == "--no-repack") {
-            throw std::runtime_error(
-                "do not pass --no-repack: "
-                "repack policy is controlled by "
-                "oversized-moe-run");
-        }
-
-        if (arg == "--no-mmap") {
-            throw std::runtime_error(
-                "do not pass --no-mmap: "
-                "mmap policy is controlled by "
-                "oversized-moe-run");
-        }
-    }
-}
-
-LaunchPlan make_completion_launch_plan(
+LaunchPlan make_engine_launch_plan(
         const std::string & engine_path,
         const ModelInfo & model,
         const MoePolicy & policy,
@@ -283,7 +251,8 @@ LaunchPlan make_completion_launch_plan(
             std::to_string(
                 policy.experts_per_tensor));
     } else {
-        // Do not accidentally inherit a research setting.
+        // Never inherit a stale research setting when the
+        // automatic policy has decided not to use residency.
         plan.env_unset.push_back(
             "GGML_EXPERT_RESIDENT_PER_TENSOR");
     }
@@ -291,10 +260,90 @@ LaunchPlan make_completion_launch_plan(
     return plan;
 }
 
+} // namespace
+
+std::string find_llama_completion(
+        const std::string & launcher_argv0) {
+    return find_engine(
+        launcher_argv0,
+        "LLAMA_COMPLETION_BIN",
+        "llama-completion");
+}
+
+std::string find_llama_server(
+        const std::string & launcher_argv0) {
+    return find_engine(
+        launcher_argv0,
+        "LLAMA_SERVER_BIN",
+        "llama-server");
+}
+
+void validate_passthrough_args(
+        const std::vector<std::string> & args) {
+    for (const auto & arg : args) {
+        if (arg == "-m" ||
+            arg == "--model" ||
+            starts_with(arg, "--model=")) {
+            throw std::runtime_error(
+                "do not pass -m/--model: "
+                "the model is the positional argument "
+                "of the oversized MoE launcher");
+        }
+
+        if (arg == "-lm") {
+            throw std::runtime_error(
+                "do not pass -lm: "
+                "model load mode is controlled by "
+                "the oversized MoE runtime");
+        }
+
+        if (arg == "--no-repack") {
+            throw std::runtime_error(
+                "do not pass --no-repack: "
+                "repack policy is controlled by "
+                "the oversized MoE runtime");
+        }
+
+        if (arg == "--no-mmap") {
+            throw std::runtime_error(
+                "do not pass --no-mmap: "
+                "mmap policy is controlled by "
+                "the oversized MoE runtime");
+        }
+    }
+}
+
+LaunchPlan make_completion_launch_plan(
+        const std::string & engine_path,
+        const ModelInfo & model,
+        const MoePolicy & policy,
+        const std::vector<std::string> &
+            passthrough_args) {
+    return make_engine_launch_plan(
+        engine_path,
+        model,
+        policy,
+        passthrough_args);
+}
+
+LaunchPlan make_server_launch_plan(
+        const std::string & engine_path,
+        const ModelInfo & model,
+        const MoePolicy & policy,
+        const std::vector<std::string> &
+            passthrough_args) {
+    return make_engine_launch_plan(
+        engine_path,
+        model,
+        policy,
+        passthrough_args);
+}
+
 void print_launch_plan(
         const LaunchPlan & plan) {
-    std::cout << "\nEnvironment\n"
-              << "-----------\n";
+    std::cout
+        << "\nEnvironment\n"
+        << "-----------\n";
 
     if (plan.env_set.empty() &&
         plan.env_unset.empty()) {
@@ -318,8 +367,9 @@ void print_launch_plan(
             << '\n';
     }
 
-    std::cout << "\nCommand\n"
-              << "-------\n";
+    std::cout
+        << "\nCommand\n"
+        << "-------\n";
 
     for (std::size_t i = 0;
          i < plan.argv.size();
@@ -332,7 +382,7 @@ void print_launch_plan(
             << shell_quote(plan.argv[i]);
     }
 
-    std::cout << "\n";
+    std::cout << '\n';
 }
 
 [[noreturn]]
@@ -366,8 +416,7 @@ void execute_launch_plan(
     argv.reserve(
         plan.argv.size() + 1);
 
-    for (const auto & arg :
-         plan.argv) {
+    for (const auto & arg : plan.argv) {
         argv.push_back(
             const_cast<char *>(
                 arg.c_str()));
@@ -383,5 +432,6 @@ void execute_launch_plan(
 
     throw std::runtime_error(
         "execv failed: " +
-        std::string(std::strerror(error)));
+        std::string(
+            std::strerror(error)));
 }

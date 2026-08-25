@@ -41,3 +41,26 @@ target_compile_features(
     PRIVATE
     cxx_std_17
 )
+
+
+set(SERVE_TARGET oversized-moe-serve)
+
+add_executable(${SERVE_TARGET}
+    serve_main.cpp
+    launcher.cpp
+    model_probe.cpp
+    memory_budget.cpp
+    moe_policy.cpp
+)
+
+target_link_libraries(
+    ${SERVE_TARGET}
+    PRIVATE
+    ggml
+)
+
+target_compile_features(
+    ${SERVE_TARGET}
+    PRIVATE
+    cxx_std_17
+)

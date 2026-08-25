@@ -21,10 +21,19 @@ struct LaunchPlan {
 std::string find_llama_completion(
     const std::string & launcher_argv0);
 
+std::string find_llama_server(
+    const std::string & launcher_argv0);
+
 void validate_passthrough_args(
     const std::vector<std::string> & args);
 
 LaunchPlan make_completion_launch_plan(
+    const std::string & engine_path,
+    const ModelInfo & model,
+    const MoePolicy & policy,
+    const std::vector<std::string> & passthrough_args);
+
+LaunchPlan make_server_launch_plan(
     const std::string & engine_path,
     const ModelInfo & model,
     const MoePolicy & policy,
