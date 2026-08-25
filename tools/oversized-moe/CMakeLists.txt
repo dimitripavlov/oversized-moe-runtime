@@ -148,3 +148,32 @@ if (LLAMA_BUILD_TESTS)
         COMMAND ${LAUNCH_PLAN_TEST_TARGET}
     )
 endif()
+
+
+if (LLAMA_BUILD_TESTS)
+    add_test(
+        NAME oversized-moe-cli-help
+        COMMAND $<TARGET_FILE:oversized-moe> --help
+    )
+
+    add_test(
+        NAME oversized-moe-cli-run-help
+        COMMAND $<TARGET_FILE:oversized-moe> run --help
+    )
+
+    add_test(
+        NAME oversized-moe-cli-serve-help
+        COMMAND $<TARGET_FILE:oversized-moe> serve --help
+    )
+
+    add_test(
+        NAME oversized-moe-cli-unknown-command
+        COMMAND $<TARGET_FILE:oversized-moe> definitely-not-a-command
+    )
+
+    set_tests_properties(
+        oversized-moe-cli-unknown-command
+        PROPERTIES
+        WILL_FAIL TRUE
+    )
+endif()
