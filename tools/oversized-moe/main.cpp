@@ -256,13 +256,13 @@ int main(int argc, char ** argv) {
 
             if (policy.experts_per_tensor > 0) {
                 row(
-                    "runtime env:",
-                    "GGML_EXPERT_RESIDENT_PER_TENSOR=" +
+                    "runtime flag:",
+                    "--expert-residency-per-tensor " +
                     std::to_string(
                         policy.experts_per_tensor));
             } else {
                 row(
-                    "runtime env:",
+                    "runtime flag:",
                     "residency disabled");
             }
         } else {
@@ -306,6 +306,11 @@ int main(int argc, char ** argv) {
                 << "planned llama.cpp flags:\n"
                 << "  -lm mmap\n";
 
+            if (policy.disable_full_prefetch) {
+                std::cout
+                    << "  --no-mmap-prefetch\n";
+            }
+
             if (policy.disable_repack) {
                 std::cout
                     << "  --no-repack\n";
@@ -313,9 +318,7 @@ int main(int argc, char ** argv) {
 
             if (policy.experts_per_tensor > 0) {
                 std::cout
-                    << '\n'
-                    << "planned environment:\n"
-                    << "  GGML_EXPERT_RESIDENT_PER_TENSOR="
+                    << "  --expert-residency-per-tensor "
                     << policy.experts_per_tensor
                     << '\n';
             }
