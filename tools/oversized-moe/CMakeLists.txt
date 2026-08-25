@@ -126,3 +126,25 @@ if (LLAMA_BUILD_TESTS)
         COMMAND ${CLI_ARGS_TEST_TARGET}
     )
 endif()
+
+
+if (LLAMA_BUILD_TESTS)
+    set(LAUNCH_PLAN_TEST_TARGET oversized-moe-launch-plan-tests)
+
+    add_executable(
+        ${LAUNCH_PLAN_TEST_TARGET}
+        launch_plan_tests.cpp
+        launcher.cpp
+    )
+
+    target_compile_features(
+        ${LAUNCH_PLAN_TEST_TARGET}
+        PRIVATE
+        cxx_std_17
+    )
+
+    add_test(
+        NAME oversized-moe-launch-plan
+        COMMAND ${LAUNCH_PLAN_TEST_TARGET}
+    )
+endif()
