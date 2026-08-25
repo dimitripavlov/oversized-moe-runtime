@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fs::File;
-use std::io::{self, Read, Seek, SeekFrom};
+use std::io::{self, BufRead, BufReader, Read, Seek};
 use std::path::Path;
 
 const GGUF_MAGIC: &[u8; 4] = b"GGUF";
@@ -33,13 +33,13 @@ impl GgufFile {
 }
 
 struct Reader {
-    file: File,
+    file: BufReader<File>,
 }
 
 impl Reader {
     fn open(path: &Path) -> io::Result<Self> {
         Ok(Self {
-            file: File::open(path)?,
+            file: BufReader::with_capacity(256 * 1024, File::open(path)?),
         })
     }
 
@@ -85,15 +85,23 @@ impl Reader {
         Ok(i64::from_le_bytes(self.bytes()?))
     }
 
-    fn skip(&mut self, n: u64) -> io::Result<()> {
-        let n = i64::try_from(n).map_err(|_| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                "GGUF value is too large to skip",
-            )
-        })?;
+    fn skip(&mut self, mut n: u64) -> io::Result<()> {
+        while n > 0 {
+            let available = self.file.fill_buf()?;
 
-        self.file.seek(SeekFrom::Current(n))?;
+            if available.is_empty() {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    "unexpected EOF while skipping GGUF value",
+                ));
+            }
+
+            let take = n.min(available.len() as u64) as usize;
+
+            self.file.consume(take);
+            n -= take as u64;
+        }
+
         Ok(())
     }
 
