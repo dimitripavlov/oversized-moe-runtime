@@ -2708,6 +2708,17 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_env("LLAMA_ARG_MMAP_PREFETCH"));
     add_opt(common_arg(
+        {"--expert-residency-per-tensor"}, "N",
+        "maximum number of expert slices to keep resident per routed weight tensor (default: 0)",
+        [](common_params & params, const std::string & value) {
+            const int parsed = std::stoi(value);
+            if (parsed < 0) {
+                throw std::invalid_argument("expert residency must be >= 0");
+            }
+            params.expert_residency_per_tensor = parsed;
+        }
+    ).set_env("LLAMA_ARG_EXPERT_RESIDENCY_PER_TENSOR"));
+    add_opt(common_arg(
         {"--numa"}, "TYPE",
         "attempt optimizations that help on some NUMA systems\n"
         "- distribute: spread execution evenly over all nodes\n"

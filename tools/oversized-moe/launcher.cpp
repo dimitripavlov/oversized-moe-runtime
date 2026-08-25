@@ -242,22 +242,25 @@ LaunchPlan make_engine_launch_plan(
         }
     }
 
+    if (policy.oversized &&
+        policy.experts_per_tensor > 0) {
+        plan.argv.push_back(
+            "--expert-residency-per-tensor");
+        plan.argv.push_back(
+            std::to_string(
+                policy.experts_per_tensor));
+    }
+
     for (const auto & arg : passthrough_args) {
         plan.argv.push_back(arg);
     }
 
-    if (policy.oversized &&
-        policy.experts_per_tensor > 0) {
-        plan.env_set.emplace_back(
-            "GGML_EXPERT_RESIDENT_PER_TENSOR",
-            std::to_string(
-                policy.experts_per_tensor));
-    } else {
-        // Never inherit a stale research setting when the
-        // automatic policy has decided not to use residency.
-        plan.env_unset.push_back(
-            "GGML_EXPERT_RESIDENT_PER_TENSOR");
-    }
+    // Residency policy belongs to this runtime. Never inherit either
+    // the old research configuration or llama.cpp's generic CLI env.
+    plan.env_unset.push_back(
+        "GGML_EXPERT_RESIDENT_PER_TENSOR");
+    plan.env_unset.push_back(
+        "LLAMA_ARG_EXPERT_RESIDENCY_PER_TENSOR");
 
     return plan;
 }
@@ -314,6 +317,16 @@ void validate_passthrough_args(
                 throw std::runtime_error(
                     "do not pass --mmap-prefetch/--no-mmap-prefetch: "
                     "mmap prefetch policy is controlled by "
+                    "the oversized MoE runtime");
+            }
+
+            if (arg == "--expert-residency-per-tensor" ||
+                starts_with(
+                    arg,
+                    "--expert-residency-per-tensor=")) {
+                throw std::runtime_error(
+                    "do not pass --expert-residency-per-tensor: "
+                    "expert residency policy is controlled by "
                     "the oversized MoE runtime");
             }
 

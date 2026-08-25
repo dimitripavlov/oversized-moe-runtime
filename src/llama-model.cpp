@@ -2600,7 +2600,12 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params, 
 }
 
 ggml_cgraph * llama_model::build_graph(const llm_graph_params & params) const {
-    std::unique_ptr<llm_graph_context> llm = build_arch_graph(params);
+    llm_graph_params graph_params = params;
+    graph_params.expert_residency_per_tensor =
+        this->params.expert_residency_per_tensor;
+
+    std::unique_ptr<llm_graph_context> llm =
+        build_arch_graph(graph_params);
 
     // add on pooling layer
     llm->build_pooling(cls, cls_b, cls_out, cls_out_b, cls_norm);
@@ -2643,6 +2648,7 @@ llama_model_params llama_model_default_params() {
         /*.no_alloc                    =*/ false,
         /*.load_mtp                    =*/ false,
         /*.no_mmap_prefetch            =*/ false,
+        /*.expert_residency_per_tensor =*/ 0,
     };
 
     return result;

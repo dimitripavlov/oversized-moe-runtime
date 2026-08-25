@@ -1688,7 +1688,8 @@ struct llama_model_params common_model_params_to_llama(common_params & params) {
     mparams.main_gpu        = params.main_gpu;
     mparams.split_mode       = params.split_mode;
     mparams.load_mode        = params.load_mode;
-    mparams.no_mmap_prefetch = params.no_mmap_prefetch;
+    mparams.no_mmap_prefetch            = params.no_mmap_prefetch;
+    mparams.expert_residency_per_tensor = params.expert_residency_per_tensor;
     mparams.tensor_split     = params.tensor_split;
     mparams.check_tensors   = params.check_tensors;
     mparams.use_extra_bufts = !params.no_extra_bufts;

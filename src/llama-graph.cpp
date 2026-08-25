@@ -1454,6 +1454,7 @@ llm_graph_context::llm_graph_context(const llm_graph_params & params) :
     hparams          (params.hparams),
     cparams          (params.cparams),
     ubatch           (params.ubatch),
+    expert_residency_per_tensor(params.expert_residency_per_tensor),
     n_embd           (hparams.n_embd),
     n_layer          (hparams.n_layer()),
     n_layer_nextn    (hparams.n_layer_nextn),
@@ -1545,6 +1546,12 @@ ggml_tensor * llm_graph_context::build_lora_mm_id(
           ggml_tensor * ids,
           ggml_tensor * w_s) const {
     ggml_tensor * res = ggml_mul_mat_id(ctx0, w, cur, ids);
+
+    if (expert_residency_per_tensor > 0) {
+        ggml_mul_mat_id_set_expert_residency(
+            res,
+            expert_residency_per_tensor);
+    }
 
     if (w_s) {
         const int64_t n_expert = w_s->ne[0];

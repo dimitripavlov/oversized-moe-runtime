@@ -84,6 +84,22 @@ void test_runtime_owned_options() {
         "--no-mmap");
 
     expect_rejected(
+        {"--mmap-prefetch"},
+        "--mmap-prefetch");
+
+    expect_rejected(
+        {"--no-mmap-prefetch"},
+        "--no-mmap-prefetch");
+
+    expect_rejected(
+        {"--expert-residency-per-tensor", "32"},
+        "--expert-residency-per-tensor");
+
+    expect_rejected(
+        {"--expert-residency-per-tensor=32"},
+        "--expert-residency-per-tensor=...");
+
+    expect_rejected(
         {"--repack"},
         "--repack");
 

@@ -206,19 +206,14 @@ typedef void * thread_ret_t;
 typedef pthread_t ggml_thread_t;
 
 // -----------------------------------------------------------------------------
-// Research: zero-copy MoE expert residency cache.
+// Zero-copy MoE expert residency cache.
 //
-// Enable with:
-//     GGML_EXPERT_RESIDENT_PER_TENSOR=<experts>
+// Residency is requested explicitly by individual GGML_OP_MUL_MAT_ID nodes.
+// Selected expert pages remain in the original mmap; no weight copy is made.
+// Each expert-weight tensor owns an independent bounded LRU.
 //
-// Keeps selected expert pages wired directly in the original GGUF mmap.
-// No malloc/copy of expert weights is performed.
-//
-// v1 policy:
-//   - Qwen-style n_experts == 128 only
-//   - independent LRU quota for every weight tensor
-//   - only fully-contained VM pages are locked, avoiding overlapping
-//     boundary pages between adjacent expert slices
+// Only fully-contained VM pages are locked, avoiding overlap between
+// adjacent expert slices.
 // -----------------------------------------------------------------------------
 
 #if defined(__APPLE__)
@@ -234,6 +229,7 @@ struct ggml_expert_resident_entry {
 struct ggml_expert_resident_tensor {
     const char * tensor_base;
     size_t       expert_size;
+    int32_t      capacity;
 
     struct ggml_expert_resident_entry * entries;
 };
@@ -244,7 +240,6 @@ struct ggml_expert_resident_state {
     size_t tensor_count;
     size_t tensor_capacity;
 
-    int    per_tensor;
     size_t page_size;
 
     uint64_t clock;
@@ -285,7 +280,6 @@ static void ggml_expert_resident_cleanup(void) {
     fprintf(stderr,
         "\n"
         "ggml_expert_resident: tensors       = %zu\n"
-        "ggml_expert_resident: per tensor    = %d\n"
         "ggml_expert_resident: hits          = %" PRIu64 "\n"
         "ggml_expert_resident: misses        = %" PRIu64 "\n"
         "ggml_expert_resident: hit rate      = %.2f %%\n"
@@ -297,7 +291,6 @@ static void ggml_expert_resident_cleanup(void) {
         "ggml_expert_resident: peak locked   = %.2f MiB\n"
         "ggml_expert_resident: wired total   = %.2f MiB\n",
         g_expert_resident.tensor_count,
-        g_expert_resident.per_tensor,
         g_expert_resident.hits,
         g_expert_resident.misses,
         hit_rate,
@@ -316,7 +309,7 @@ static void ggml_expert_resident_cleanup(void) {
         struct ggml_expert_resident_tensor * tensor =
             &g_expert_resident.tensors[t];
 
-        for (int i = 0; i < g_expert_resident.per_tensor; ++i) {
+        for (int i = 0; i < tensor->capacity; ++i) {
             struct ggml_expert_resident_entry * e =
                 &tensor->entries[i];
 
@@ -332,24 +325,6 @@ static void ggml_expert_resident_cleanup(void) {
 }
 
 static void ggml_expert_resident_init(void) {
-    const char * env =
-        getenv("GGML_EXPERT_RESIDENT_PER_TENSOR");
-
-    if (env == NULL || *env == '\0') {
-        return;
-    }
-
-    char * end = NULL;
-    long value = strtol(env, &end, 10);
-
-    if (end == env || value <= 0 || value > 128) {
-        fprintf(stderr,
-            "ggml_expert_resident: invalid "
-            "GGML_EXPERT_RESIDENT_PER_TENSOR='%s'\n",
-            env);
-        return;
-    }
-
     const long page_size = sysconf(_SC_PAGESIZE);
 
     if (page_size <= 0 ||
@@ -359,8 +334,7 @@ static void ggml_expert_resident_init(void) {
         return;
     }
 
-    g_expert_resident.per_tensor = (int) value;
-    g_expert_resident.page_size  = (size_t) page_size;
+    g_expert_resident.page_size = (size_t) page_size;
 
     g_expert_resident.tensor_capacity = 256;
     g_expert_resident.tensors = calloc(
@@ -376,9 +350,7 @@ static void ggml_expert_resident_init(void) {
     g_expert_resident.enabled = 1;
 
     fprintf(stderr,
-        "ggml_expert_resident: enabled, "
-        "%d experts/tensor, page size = %zu\n",
-        g_expert_resident.per_tensor,
+        "ggml_expert_resident: enabled, page size = %zu\n",
         g_expert_resident.page_size);
 
     atexit(ggml_expert_resident_cleanup);
@@ -387,7 +359,8 @@ static void ggml_expert_resident_init(void) {
 static struct ggml_expert_resident_tensor *
 ggml_expert_resident_get_tensor(
         const char * tensor_base,
-        size_t expert_size) {
+        size_t expert_size,
+        int32_t capacity) {
 
     for (size_t i = 0;
          i < g_expert_resident.tensor_count;
@@ -398,6 +371,7 @@ ggml_expert_resident_get_tensor(
 
         if (t->tensor_base == tensor_base) {
             GGML_ASSERT(t->expert_size == expert_size);
+            GGML_ASSERT(t->capacity == capacity);
             return t;
         }
     }
@@ -437,9 +411,10 @@ ggml_expert_resident_get_tensor(
 
     t->tensor_base = tensor_base;
     t->expert_size = expert_size;
+    t->capacity    = capacity;
 
     t->entries = calloc(
-        g_expert_resident.per_tensor,
+        (size_t) capacity,
         sizeof(*t->entries));
 
     if (t->entries == NULL) {
@@ -454,8 +429,12 @@ ggml_expert_resident_get_tensor(
 static void ggml_expert_resident_touch(
         const char * tensor_base,
         int32_t expert_id,
-        int32_t n_experts,
-        size_t expert_size) {
+        size_t expert_size,
+        int32_t capacity) {
+
+    if (capacity <= 0) {
+        return;
+    }
 
     pthread_once(
         &g_expert_resident_once,
@@ -465,19 +444,14 @@ static void ggml_expert_resident_touch(
         return;
     }
 
-    // Scope v1 to the Qwen MoE expert tensors being studied.
-    if ((n_experts != 128 && n_experts != 512) ||
-        expert_size < 512u * 1024u) {
-        return;
-    }
-
     pthread_mutex_lock(
         &g_expert_resident_mutex);
 
     struct ggml_expert_resident_tensor * tensor =
         ggml_expert_resident_get_tensor(
             tensor_base,
-            expert_size);
+            expert_size,
+            capacity);
 
     if (tensor == NULL) {
         pthread_mutex_unlock(
@@ -492,7 +466,7 @@ static void ggml_expert_resident_touch(
     uint64_t oldest_stamp = UINT64_MAX;
 
     for (int i = 0;
-         i < g_expert_resident.per_tensor;
+         i < tensor->capacity;
          ++i) {
 
         struct ggml_expert_resident_entry * e =
@@ -628,12 +602,12 @@ static void ggml_expert_resident_touch(
 static void ggml_expert_resident_touch(
         const char * tensor_base,
         int32_t expert_id,
-        int32_t n_experts,
-        size_t expert_size) {
+        size_t expert_size,
+        int32_t capacity) {
     GGML_UNUSED(tensor_base);
     GGML_UNUSED(expert_id);
-    GGML_UNUSED(n_experts);
     GGML_UNUSED(expert_size);
+    GGML_UNUSED(capacity);
 }
 
 #endif
@@ -2001,6 +1975,11 @@ static void ggml_compute_forward_mul_mat_id(
     const int n_ids = ids->ne[0]; // n_expert_used
     const int n_as  = ne02;       // n_expert
 
+    const int32_t expert_residency =
+        ((const int32_t *) dst->op_params)[0];
+
+    GGML_ASSERT(expert_residency >= 0);
+
     void * wdata_cur = params->wdata;
 
     if (src1->type != vec_dot_type) {
@@ -2073,13 +2052,20 @@ static void ggml_compute_forward_mul_mat_id(
 
         // Wire selected expert pages directly in the original mmap.
         // This is zero-copy: src0->data remains unchanged.
-        for (int cur_a = 0; cur_a < n_as; ++cur_a) {
-            if (matrix_row_counts[cur_a] != 0) {
-                ggml_expert_resident_touch(
-                    (const char *) src0->data,
-                    cur_a,
-                    n_as,
-                    nb02);
+        if (expert_residency > 0) {
+            const int32_t residency_capacity =
+                expert_residency < n_as
+                    ? expert_residency
+                    : (int32_t) n_as;
+
+            for (int cur_a = 0; cur_a < n_as; ++cur_a) {
+                if (matrix_row_counts[cur_a] != 0) {
+                    ggml_expert_resident_touch(
+                        (const char *) src0->data,
+                        cur_a,
+                        nb02,
+                        residency_capacity);
+                }
             }
         }
     }

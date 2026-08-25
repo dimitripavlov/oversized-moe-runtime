@@ -2457,6 +2457,7 @@ llm_graph_params llama_context::graph_params(
         /*.arch        =*/ model.arch,
         /*.hparams     =*/ model.hparams,
         /*.cparams     =*/ cparams,
+        /*.expert_residency_per_tensor =*/ 0,
         /*.ubatch      =*/ ubatch,
         /*.gtype       =*/ gtype,
         /*.sched       =*/ sched.get(),

@@ -31,6 +31,20 @@ bool contains_arg(
                value) != plan.argv.end();
 }
 
+bool contains_arg_pair(
+        const LaunchPlan & plan,
+        const std::string & key,
+        const std::string & value) {
+    for (size_t i = 0; i + 1 < plan.argv.size(); ++i) {
+        if (plan.argv[i] == key &&
+            plan.argv[i + 1] == value) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool contains_env_set(
         const LaunchPlan & plan,
         const std::string & key,
@@ -153,15 +167,24 @@ void test_oversized_completion_plan() {
         "completion passthrough arguments are preserved");
 
     check(
-        contains_env_set(
+        contains_arg_pair(
             plan,
-            "GGML_EXPERT_RESIDENT_PER_TENSOR",
+            "--expert-residency-per-tensor",
             "32"),
-        "oversized mode sets expert residency quota");
+        "oversized mode injects expert residency quota");
 
     check(
-        plan.env_unset.empty(),
-        "oversized residency does not unset quota environment");
+        plan.env_set.empty(),
+        "oversized mode does not configure residency through environment");
+
+    check(
+        contains_env_unset(
+            plan,
+            "GGML_EXPERT_RESIDENT_PER_TENSOR") &&
+        contains_env_unset(
+            plan,
+            "LLAMA_ARG_EXPERT_RESIDENCY_PER_TENSOR"),
+        "oversized mode clears inherited residency environment");
 }
 
 void test_oversized_server_plan() {
@@ -216,11 +239,24 @@ void test_oversized_server_plan() {
         "server passthrough arguments are preserved");
 
     check(
-        contains_env_set(
+        contains_arg_pair(
             plan,
-            "GGML_EXPERT_RESIDENT_PER_TENSOR",
+            "--expert-residency-per-tensor",
             "32"),
-        "server plan sets expert residency quota");
+        "server plan injects expert residency quota");
+
+    check(
+        plan.env_set.empty(),
+        "server plan does not configure residency through environment");
+
+    check(
+        contains_env_unset(
+            plan,
+            "GGML_EXPERT_RESIDENT_PER_TENSOR") &&
+        contains_env_unset(
+            plan,
+            "LLAMA_ARG_EXPERT_RESIDENCY_PER_TENSOR"),
+        "server plan clears inherited residency environment");
 }
 
 void test_standard_plan() {
@@ -260,14 +296,23 @@ void test_standard_plan() {
         "standard mode does not disable repack");
 
     check(
+        !contains_arg(
+            plan,
+            "--expert-residency-per-tensor"),
+        "standard mode does not force expert residency");
+
+    check(
         plan.env_set.empty(),
-        "standard mode does not set residency quota");
+        "standard mode does not set residency environment");
 
     check(
         contains_env_unset(
             plan,
-            "GGML_EXPERT_RESIDENT_PER_TENSOR"),
-        "standard mode clears stale residency environment");
+            "GGML_EXPERT_RESIDENT_PER_TENSOR") &&
+        contains_env_unset(
+            plan,
+            "LLAMA_ARG_EXPERT_RESIDENCY_PER_TENSOR"),
+        "standard mode clears inherited residency environment");
 
     check(
         contains_arg(plan, "-t") &&
@@ -291,14 +336,23 @@ void test_zero_quota_clears_environment() {
             {});
 
     check(
+        !contains_arg(
+            plan,
+            "--expert-residency-per-tensor"),
+        "zero quota does not inject residency argument");
+
+    check(
         plan.env_set.empty(),
         "zero quota does not set residency environment");
 
     check(
         contains_env_unset(
             plan,
-            "GGML_EXPERT_RESIDENT_PER_TENSOR"),
-        "zero quota clears stale residency environment");
+            "GGML_EXPERT_RESIDENT_PER_TENSOR") &&
+        contains_env_unset(
+            plan,
+            "LLAMA_ARG_EXPERT_RESIDENCY_PER_TENSOR"),
+        "zero quota clears inherited residency environment");
 }
 
 } // namespace

@@ -340,6 +340,8 @@ extern "C" {
         bool no_alloc;         // only load metadata and simulate memory allocations
         bool load_mtp;         // whether to load MTP layers
         bool no_mmap_prefetch; // disable prefetch of mmap-backed model pages during load
+
+        int32_t expert_residency_per_tensor; // max expert slices to keep resident per routed weight tensor, 0 = disabled
     };
 
     struct llama_sampler_seq_config {

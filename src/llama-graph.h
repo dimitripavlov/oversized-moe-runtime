@@ -774,6 +774,8 @@ struct llm_graph_params {
     llama_hparams hparams;
     llama_cparams cparams;
 
+    int32_t expert_residency_per_tensor = 0;
+
     llama_ubatch ubatch; // note: intentionally make a copy
 
     llm_graph_type gtype;
@@ -986,6 +988,8 @@ struct llm_graph_context {
     const llama_hparams & hparams;
     const llama_cparams & cparams;
     const llama_ubatch  & ubatch;
+
+    const int32_t expert_residency_per_tensor;
 
     const int64_t n_embd;
     const int64_t n_layer;

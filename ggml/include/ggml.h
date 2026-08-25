@@ -1448,6 +1448,12 @@ extern "C" {
             struct ggml_tensor  * b,
             struct ggml_tensor  * ids);
 
+    // request bounded residency for src0 expert slices used by this MUL_MAT_ID
+    // 0 disables residency
+    GGML_API void ggml_mul_mat_id_set_expert_residency(
+            struct ggml_tensor * tensor,
+            int32_t              experts);
+
     // A: m columns, n rows,
     // B: p columns, n rows,
     // result is m columns, p rows
