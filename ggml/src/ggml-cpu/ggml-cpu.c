@@ -466,7 +466,7 @@ static void ggml_expert_resident_touch(
     }
 
     // Scope v1 to the Qwen MoE expert tensors being studied.
-    if (n_experts != 128 ||
+    if ((n_experts != 128 && n_experts != 512) ||
         expert_size < 512u * 1024u) {
         return;
     }
