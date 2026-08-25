@@ -279,39 +279,50 @@ std::string find_llama_server(
 }
 
 void validate_passthrough_args(
-        const std::vector<std::string> & args) {
-    for (const auto & arg : args) {
-        if (arg == "-m" ||
-            arg == "--model" ||
-            starts_with(arg, "--model=")) {
-            throw std::runtime_error(
-                "do not pass -m/--model: "
-                "the model is the positional argument "
-                "of the oversized MoE launcher");
-        }
+            const std::vector<std::string> & args) {
+        for (const auto & arg : args) {
+            if (arg == "-m" ||
+                arg == "--model" ||
+                starts_with(arg, "--model=")) {
+                throw std::runtime_error(
+                    "do not pass -m/--model: "
+                    "the model is controlled by "
+                    "the oversized MoE runtime");
+            }
 
-        if (arg == "-lm") {
-            throw std::runtime_error(
-                "do not pass -lm: "
-                "model load mode is controlled by "
-                "the oversized MoE runtime");
-        }
+            if (arg == "-lm" ||
+                arg == "--load-mode" ||
+                starts_with(arg, "--load-mode=")) {
+                throw std::runtime_error(
+                    "do not pass -lm/--load-mode: "
+                    "model load mode is controlled by "
+                    "the oversized MoE runtime");
+            }
 
-        if (arg == "--no-repack") {
-            throw std::runtime_error(
-                "do not pass --no-repack: "
-                "repack policy is controlled by "
-                "the oversized MoE runtime");
-        }
+            if (arg == "--mmap" ||
+                arg == "--no-mmap") {
+                throw std::runtime_error(
+                    "do not pass --mmap/--no-mmap: "
+                    "mmap policy is controlled by "
+                    "the oversized MoE runtime");
+            }
 
-        if (arg == "--no-mmap") {
-            throw std::runtime_error(
-                "do not pass --no-mmap: "
-                "mmap policy is controlled by "
-                "the oversized MoE runtime");
+            if (arg == "--repack" ||
+                arg == "--no-repack") {
+                throw std::runtime_error(
+                    "do not pass --repack/--no-repack: "
+                    "repack policy is controlled by "
+                    "the oversized MoE runtime");
+            }
+
+            if (arg == "--mlock") {
+                throw std::runtime_error(
+                    "do not pass --mlock: "
+                    "memory locking policy is controlled by "
+                    "the oversized MoE runtime");
+            }
         }
     }
-}
 
 LaunchPlan make_completion_launch_plan(
         const std::string & engine_path,
