@@ -40,10 +40,10 @@ An OpenAI-compatible `/v1/chat/completions` request was also validated.
 
 ## Qwen3-Next-80B-A3B
 
-### Matched decode experiment
+### Historical matched decode experiment
 
-A matched workload was used to compare the normal mmap path with bounded
-zero-copy expert residency.
+The original research-stage matched workload compared the normal mmap path
+with bounded zero-copy expert residency.
 
 | Configuration | Decode throughput |
 | --- | ---: |
@@ -54,8 +54,59 @@ Relative improvement:
 
     +41.6%
 
-This was the key result demonstrating that retaining a bounded set of hot
-expert pages can materially improve oversized sparse-MoE CPU inference.
+This was the key research result demonstrating that retaining a bounded set
+of hot expert pages can materially improve oversized sparse-MoE CPU inference.
+
+The absolute 4.80 tok/s result is retained here as a historical measurement.
+A fresh rebuild of the original residency commit did not reproduce that
+absolute throughput on the current system state, so it is not used as the
+v0.2 acceptance threshold.
+
+### v0.2 matched acceptance
+
+A fresh matched A/B was performed on the v0.2 engine-boundary build with the
+same model, prompt and decode configuration.
+
+Common settings:
+
+    mmap:                   enabled
+    full mmap prefetch:     disabled
+    repack:                 disabled
+    threads:                4
+    batch threads:          4
+    context:                512
+    generated tokens:       64
+    temperature:            0
+    swap:                   0
+
+| Configuration | Decode latency | Decode throughput |
+| --- | ---: | ---: |
+| Baseline, no expert residency | 399.66 ms/token | 2.50 tok/s |
+| Expert residency, quota 32 | 275.78 ms/token | 3.63 tok/s |
+
+Relative change:
+
+    decode latency:         -31.0%
+    decode throughput:      +45.2%
+
+The quota-32 run locked approximately 2718 MiB of expert pages with zero
+lock failures.
+
+As a reproducibility control, the original research commit
+`78d4b94` was rebuilt and rerun with the same workload on the same current
+machine state:
+
+    original commit rebuild: 3.58 tok/s
+    v0.2 engine boundary:     3.63 tok/s
+
+Both runs produced the same decode residency behavior:
+
+    DECODE hits:             57,858
+    DECODE misses:           32,862
+    DECODE hit rate:         63.78%
+
+This shows that the v0.2 generic engine boundary preserves the original
+ExpertResidency behavior and introduces no measurable throughput regression.
 
 ### Expert locality
 
