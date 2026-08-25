@@ -81,3 +81,26 @@ target_compile_features(
     PRIVATE
     cxx_std_17
 )
+
+
+if (LLAMA_BUILD_TESTS)
+    set(POLICY_TEST_TARGET oversized-moe-policy-tests)
+
+    add_executable(
+        ${POLICY_TEST_TARGET}
+        policy_tests.cpp
+        runtime_validation.cpp
+        moe_policy.cpp
+    )
+
+    target_compile_features(
+        ${POLICY_TEST_TARGET}
+        PRIVATE
+        cxx_std_17
+    )
+
+    add_test(
+        NAME oversized-moe-policy
+        COMMAND ${POLICY_TEST_TARGET}
+    )
+endif()
