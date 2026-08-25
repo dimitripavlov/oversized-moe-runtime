@@ -4,6 +4,7 @@
 #include "memory_budget.h"
 #include "model_probe.h"
 #include "moe_policy.h"
+#include "runtime_validation.h"
 
 #include <cstdint>
 #include <exception>
@@ -245,12 +246,31 @@ int oversized_moe_runtime_main(
                 policy,
                 passthrough_args);
 
+        const RuntimeValidation validation =
+            validate_runtime_policy(
+                model,
+                memory,
+                policy,
+                engine);
+
+        if (!validation.ok) {
+            print_runtime_validation(
+                validation,
+                std::cerr);
+
+            return 3;
+        }
+
         print_summary(
             mode,
             model,
             memory,
             policy,
             engine);
+
+        print_runtime_validation(
+            validation,
+            std::cout);
 
         print_launch_plan(plan);
 

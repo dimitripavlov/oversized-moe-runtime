@@ -25,6 +25,7 @@ set(RUN_TARGET oversized-moe-run)
 add_executable(${RUN_TARGET}
     run_main.cpp
     runtime_frontend.cpp
+    runtime_validation.cpp
     launcher.cpp
     model_probe.cpp
     memory_budget.cpp
@@ -49,6 +50,7 @@ set(SERVE_TARGET oversized-moe-serve)
 add_executable(${SERVE_TARGET}
     serve_main.cpp
     runtime_frontend.cpp
+    runtime_validation.cpp
     launcher.cpp
     model_probe.cpp
     memory_budget.cpp
