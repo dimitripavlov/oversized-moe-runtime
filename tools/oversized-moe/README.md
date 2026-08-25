@@ -20,15 +20,17 @@ The runtime automatically inspects the GGUF model and host memory, chooses a bou
 
 ## Current status
 
-MVP 0.1 currently supports the architectures validated by this project:
+Oversized MoE Runtime v0.2 currently supports the architectures validated by this project:
 
 * `qwen3moe`
 * `qwen3next`
 
-The current low-level ExpertResidency implementation supports models with:
+The validated product layouts currently use:
 
 * 128 experts per layer
 * 512 experts per layer
+
+The v0.2 low-level ExpertResidency mechanism is generic with respect to expert count. Architecture support and quota selection remain product policy.
 
 Validated models include:
 
@@ -202,13 +204,27 @@ expert residency budget
 experts-per-tensor residency quota
 ```
 
-Internally, the current engine integration uses:
+In v0.2 the product launches llama.cpp through generic engine controls:
+
+```text
+-lm mmap
+--no-mmap-prefetch
+--no-repack
+--expert-residency-per-tensor N
+```
+
+The product layer owns the value of `N`; users should not override these
+runtime-owned memory-policy options.
+
+For deterministic behavior the launcher removes inherited values of:
 
 ```text
 GGML_EXPERT_RESIDENT_PER_TENSOR
+LLAMA_ARG_EXPERT_RESIDENCY_PER_TENSOR
 ```
 
-but users should not set this variable manually.
+The legacy `GGML_EXPERT_RESIDENT_PER_TENSOR` variable is not the v0.2 product
+configuration interface.
 
 The runtime computes the quota from:
 

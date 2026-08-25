@@ -206,16 +206,58 @@ Run the project test suite:
       -R "^oversized-moe-" \
       --output-on-failure
 
-The v0.2 release candidate passes:
+The v0.2 release passes:
 
     100% tests passed out of 7
 
-The Rust product-layer PoC also passes `cargo test` / `cargo check` and has
-been validated against the C++ probe and launch-plan behavior.
+### Rust product-layer PoC
 
-More detailed runtime documentation is available in:
+v0.2 also includes a standalone Rust `probe` / `run` proof of concept.
+
+Requirements:
+
+- a Rust toolchain with Cargo and Rust 2024 edition support;
+- a compatible `llama-completion` binary from this patched llama.cpp tree for
+  actual inference.
+
+The v0.2 Rust crate has no external Cargo dependencies.
+
+Build the Rust frontend:
+
+    cargo build --release \
+      --manifest-path tools/oversized-moe-rs/Cargo.toml
+
+Inspect a model:
+
+    ./tools/oversized-moe-rs/target/release/oversized-moe-rs \
+      probe MODEL.gguf
+
+Run completion inference:
+
+    ./tools/oversized-moe-rs/target/release/oversized-moe-rs \
+      run MODEL.gguf -t 4 -c 512 -n 64
+
+If `llama-completion` cannot be discovered automatically:
+
+    LLAMA_COMPLETION_BIN="$PWD/build/bin/llama-completion" \
+      ./tools/oversized-moe-rs/target/release/oversized-moe-rs \
+      run MODEL.gguf -n 64
+
+Validate the Rust crate:
+
+    cargo test --release \
+      --manifest-path tools/oversized-moe-rs/Cargo.toml
+
+    cargo check \
+      --manifest-path tools/oversized-moe-rs/Cargo.toml
+
+The Rust PoC has been validated against the C++ probe and launch-plan behavior.
+The v0.2 crate does not yet contain a dedicated Rust regression-test suite.
+
+Detailed runtime documentation:
 
     tools/oversized-moe/README.md
+    tools/oversized-moe-rs/README.md
 
 ## llama.cpp base
 

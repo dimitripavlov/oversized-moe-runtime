@@ -17,7 +17,7 @@ available physical RAM.
 llama.cpp
 https://github.com/ggml-org/llama.cpp
 
-Oversized MoE Runtime v0.1 is based on llama.cpp commit:
+Oversized MoE Runtime v0.1 and v0.2 are based on the pinned llama.cpp commit:
 
     f280b26983ad0fdb705a0d9ebf0503e76f2899b0
 
