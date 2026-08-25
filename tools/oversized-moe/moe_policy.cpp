@@ -75,16 +75,27 @@ MoePolicy make_moe_policy(
     policy.architecture_supported =
         supported_architecture(model);
 
-    if (!policy.architecture_supported) {
-        policy.reason =
-            "architecture is not supported by MVP 0.1";
+    // Classify the model before applying architecture-specific
+    // execution policy. Unsupported models must never inherit or
+    // guess an ExpertResidency configuration.
+    if (!model.sparse_moe) {
+        if (model.expert_count == 0 &&
+            model.expert_tensor_count == 0) {
+            policy.reason =
+                "model is not a supported sparse MoE model";
+        } else {
+            policy.reason =
+                "sparse MoE expert geometry is incomplete "
+                "or unsupported";
+        }
 
         return policy;
     }
 
-    if (!model.sparse_moe) {
+    if (!policy.architecture_supported) {
         policy.reason =
-            "supported sparse-MoE geometry not found";
+            "sparse MoE architecture is not supported "
+            "by MVP 0.1";
 
         return policy;
     }
