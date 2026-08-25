@@ -104,3 +104,25 @@ if (LLAMA_BUILD_TESTS)
         COMMAND ${POLICY_TEST_TARGET}
     )
 endif()
+
+
+if (LLAMA_BUILD_TESTS)
+    set(CLI_ARGS_TEST_TARGET oversized-moe-cli-args-tests)
+
+    add_executable(
+        ${CLI_ARGS_TEST_TARGET}
+        cli_args_tests.cpp
+        launcher.cpp
+    )
+
+    target_compile_features(
+        ${CLI_ARGS_TEST_TARGET}
+        PRIVATE
+        cxx_std_17
+    )
+
+    add_test(
+        NAME oversized-moe-cli-args
+        COMMAND ${CLI_ARGS_TEST_TARGET}
+    )
+endif()
