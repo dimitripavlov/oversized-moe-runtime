@@ -30,10 +30,21 @@ See [BENCHMARKS.md](BENCHMARKS.md) for measurements and research results.
 
 ## Status
 
-**Oversized MoE Runtime v0.1 released**
+**Oversized MoE Runtime v0.2**
 
-v0.1 has been validated end-to-end from the packaged source artifact with a
-fresh build and 7/7 automated regression and smoke tests.
+v0.2 introduces a generic llama.cpp engine boundary for oversized sparse-MoE
+execution and a Rust product-layer proof of concept.
+
+The release preserves the v0.1 bounded zero-copy ExpertResidency mechanism,
+moves mmap-prefetch and expert-residency control behind generic engine
+configuration, and validates the new boundary with the existing 7/7 C++
+regression and smoke tests.
+
+A fresh Qwen3-Next-80B matched A/B measured:
+
+    baseline:                 2.50 tok/s
+    expert residency quota32: 3.63 tok/s
+    decode throughput uplift: +45.2%
 
 ## Why
 
@@ -125,7 +136,7 @@ Run the server:
       -t 4 \
       -c 2048
 
-## Supported architectures in v0.1
+## Supported architectures in v0.2
 
 - Qwen3 MoE (`qwen3moe`)
 - Qwen3-Next (`qwen3next`)
@@ -195,9 +206,12 @@ Run the project test suite:
       -R "^oversized-moe-" \
       --output-on-failure
 
-The v0.1 release artifact passes:
+The v0.2 release candidate passes:
 
     100% tests passed out of 7
+
+The Rust product-layer PoC also passes `cargo test` / `cargo check` and has
+been validated against the C++ probe and launch-plan behavior.
 
 More detailed runtime documentation is available in:
 
@@ -205,12 +219,17 @@ More detailed runtime documentation is available in:
 
 ## llama.cpp base
 
-Oversized MoE Runtime v0.1 is based on llama.cpp commit:
+Oversized MoE Runtime remains based on the pinned llama.cpp base commit:
 
     f280b26983ad0fdb705a0d9ebf0503e76f2899b0
 
-The project currently carries a small productized engine patchset over
-llama.cpp.
+v0.2 reduces the product/engine coupling to a small generic engine surface:
+
+    --no-mmap-prefetch
+    --expert-residency-per-tensor N
+
+Product-specific architecture support, RAM budgeting, quota selection and
+runtime policy remain outside the engine.
 
 The original upstream README is preserved as:
 
@@ -218,25 +237,30 @@ The original upstream README is preserved as:
 
 ## Release
 
-The first source release is tagged:
+Published release tags:
 
     oversized-moe-v0.1
+    oversized-moe-v0.2
 
-The release package contains:
+v0.2 adds:
 
-- complete source archive;
-- portable 16-patch product series;
-- build instructions;
-- release notes;
-- SHA256 checksums.
+- generic mmap-prefetch engine control;
+- generic per-tensor ExpertResidency engine control;
+- separation of engine mechanism from product policy;
+- Rust `probe` and `run` product-layer proof of concept;
+- fresh matched Qwen3-Next-80B performance validation.
+
+See [BENCHMARKS.md](BENCHMARKS.md) for the current measurements.
 
 ## Current limitations
 
-- v0.1 product support is limited to `qwen3moe` and `qwen3next`.
+- Product support is currently limited to `qwen3moe` and `qwen3next`.
 - Primary validation is currently macOS arm64 / Apple M1.
 - Distribution is source-only.
 - Memory-policy calibration is conservative rather than universally adaptive.
 - A small patched llama.cpp engine surface is still required.
+- The Rust frontend is a v0.2 proof of concept and does not yet provide the
+  full C++ `serve` surface or an equivalent Rust test suite.
 - Model files and model weights are not distributed with this project.
 
 ## Relationship to llama.cpp
