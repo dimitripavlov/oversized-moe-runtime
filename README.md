@@ -4,6 +4,8 @@ Run sparse Mixture-of-Experts GGUF models that are larger than physical RAM
 on CPU systems using mmap and bounded zero-copy expert residency on top of
 llama.cpp.
 
+![Oversized MoE Runtime — 48.41 GB MoE on 16 GB RAM](docs/assets/oversized-moe-runtime-social-preview.png)
+
 ## 48 GB model on a 16 GB Mac
 
 **Qwen3-Next-80B-A3B-Instruct Q4_K_M — 48.41 GB GGUF — successfully running on a 16 GiB MacBook Air M1, CPU-only.**
