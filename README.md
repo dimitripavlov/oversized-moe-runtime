@@ -4,6 +4,28 @@ Run sparse Mixture-of-Experts GGUF models that are larger than physical RAM
 on CPU systems using mmap and bounded zero-copy expert residency on top of
 llama.cpp.
 
+## 48 GB model on a 16 GB Mac
+
+**Qwen3-Next-80B-A3B-Instruct Q4_K_M — 48.41 GB GGUF — successfully running on a 16 GiB MacBook Air M1, CPU-only.**
+
+    Model size:            48.41 GB
+    Physical RAM:          16 GiB
+    Oversubscription:      ~2.82x
+    Backend:               CPU
+    Metal:                 OFF
+    Experts/layer:         512
+    Active experts/token:  10
+    Expert quota:          32 / tensor
+
+Validated with both local completion inference and `llama-server`, including
+an OpenAI-compatible `/v1/chat/completions` request.
+
+The key mechanism is not loading another copy of the experts. The runtime keeps
+the model mmap-backed and maintains a bounded zero-copy residency set for hot
+expert pages.
+
+See [BENCHMARKS.md](BENCHMARKS.md) for measurements and research results.
+
 ## Status
 
 **Oversized MoE Runtime v0.1 released**
@@ -44,6 +66,39 @@ For supported oversized sparse-MoE models it automatically:
 
 The runtime does not implement its own inference kernels or HTTP server.
 llama.cpp remains the inference engine.
+
+## Architecture
+
+    +-----------------------------+
+    |        GGUF on SSD          |
+    +--------------+--------------+
+                   |
+                   | mmap
+                   v
+    +-----------------------------+
+    |   Pageable model weights    |
+    |                             |
+    | most experts remain         |
+    | pageable / demand-loaded    |
+    +--------------+--------------+
+                   |
+                   | sparse expert accesses
+                   v
+    +-----------------------------+
+    | Bounded zero-copy residency |
+    |                             |
+    | hot expert pages            |
+    | managed with an LRU policy  |
+    +--------------+--------------+
+                   |
+                   v
+    +-----------------------------+
+    |      llama.cpp CPU          |
+    |        inference            |
+    +-----------------------------+
+
+The product layer decides the RAM budget and residency quota. llama.cpp remains
+responsible for inference.
 
 ## CLI
 
